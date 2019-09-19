@@ -14,12 +14,9 @@ from string import punctuation
 import re
 ps = PorterStemmer()
 
-def product_dict_cleaner(id_pro_c):
-    
-    with open('stemmeshfinal.txt','r') as f:
-        contents = f.read().lower().split()      
-    stop_words = stopwords.words('english') + list(punctuation) + list(contents) + [" "]  #+list(remwords) + ['','C','','’','•','¢','F.','T.','root','stem','®','™','Dancers','elastase','factor','actitvity','death','beta','chicken','receptor','speede','transcription','ligand','lysates','convertase','iqe','custom','kit','total','analysis','lisa','elisa','iqelisa','human','mouse','rat','cell','based','related','assay','array','recombinant','Infusion','Sporulation','B.','Greenland','Centrifuge','Resuspend','custom','kit','total','analysis','lisa','elisa','iqelisa','human','mouse','rat','cell','based','related','assay','array','recombinant','procured','.A','P.','/m','Gujarat','Co.','E.','St.','Dr.','Ltd.','Inc','U.S.A.','','°C','S.','M.',','B.']
-    
+class product_dict_cleaner(object):
+        
+      
     with open('productnamescleaner.txt','r') as fp:
         lines=fp.read().lower().split()
     clean_n = set(' '.join(lines).split())
@@ -34,9 +31,23 @@ def product_dict_cleaner(id_pro_c):
 
     combine = list(clean_n) + list(brand) + list(category)
 
-   
-    for key, value in id_pro_c.items():
-        words = value.lower().split(' ')
+
+    stop_words = stopwords.words('english')+list(punctuation)
+    reg = '^[¢‘»®™•°/’!"#$%&\€Ÿ\'()*+\,\,-./:;<=>?@[\]^_`{|}~\“\”]+' # removes from start
+    reg1 = '[¢‘»®™•°/’!"#$%&\€Ÿ\'()*+\,\,-./:;<=>?@[\]^_`{|}~\“\”]+$' # removes from end
+    reg2 = '^[¢‘»®™•°/’!"#$%&\\'()*+\,\,-./:;<=>?@[\]^_`{|}~\“\”0-9]+$' # if word only had these
+    remove_reg = "[!$=?@^~°*º]" 
+    ps = PorterStemmer()
+    
+    with open('stemmeshfinal.txt','r') as f:
+        content = f.read().split()
+    
+    with open('stemplus.txt','r') as f:
+        content1 = f.read().split()
+
+    @classmethod
+    def pre_clean(cls, text):
+        words = text.split(' ')
         #word = [w for w in words if not w.lower() in clean_n]
         final=[]
         for item in words:
@@ -44,7 +55,7 @@ def product_dict_cleaner(id_pro_c):
                 woli = item.split('/')
                 new=[]
                 for it in woli:
-                    if it.lower() in clean_n:
+                    if it in cls.clean_n:
                         continue
                     else:
                         new.append(it)
@@ -52,30 +63,69 @@ def product_dict_cleaner(id_pro_c):
             else:
                 final.append(item)
         wojoi = ' '.join(final)
-        token = nltk.word_tokenize(wojoi)
+        return wojoi
 
-        words=[]
-        for word in token:
-            word=re.sub('^[¢‘»®™•°/’!"#$%&\€Ÿ\'()*+,-./:;<=>?@[\]^_`{|}~\“\”]+','',word)
-            word=re.sub('[¢‘»®™•°/’!"#$%&\€Ÿ\'()*+,-./:;<=>?@[\]^_`{|}~\“\”]+$','',word)
-            word = re.sub('^[0-9]\/','',word)
-            if re.search('^[¢‘»®™•°/’!"#$%&\\'()*+,-./:;<=>?@[\]^_`{|}~\“\”0-9]+$',word): #eliminate allpunctuation if only 
+
+    @classmethod
+    def tokenise(cls, text):
+        mat = nltk.word_tokenize(text)
+        mat = ' '.join(mat)
+        mat = re.split(r"[:+\.\s|]|\b[0-9]?[a-z]?\'[a-z]?[0-9]?\b|\b[a-z]?\,[a-z]?\b",mat)
+        return mat
+
+    @classmethod
+    def rem_stopwords(cls, text):
+        mat = list(set([w for w in text if not w in cls.stop_words]))
+        return mat
+
+    @classmethod
+    def rem_reg(cls, text):
+        mat1=[]
+        for w in text:
+            if w=='':
                 continue
-            elif word == '':
+            w = re.sub("(\'s)$",'',w)
+            w = re.sub("(\`s)$",'',w)
+            w = re.sub(cls.reg,'',w)
+            w = re.sub(cls.reg1,'',w)
+            w = re.sub("[\‟\′\'�_]",'',w)
+            w = re.sub(cls.reg2,'',w)
+            if re.search(cls.remove_reg,w):
                 continue
-            elif re.search('m[mlin]{0,3}/[cmlin]+',word):
+            elif re.search('[mk]?[cmlgin]{0,3}/[mk]?[cmlgin]{0,3}|fig',w):
                 continue
-            elif re.search('^[μ]',word):
+            elif re.search('^(.[/-_])+.?$',w):
                 continue
-            elif re.search('[!"#$%&\'()*+,-./:;<=>?@[\]^_`{|}~][A-Za-z0-9][!"#$%&\'()*+,-./:;<=>?@[\]^_`{|}~][A-Za-z0-9][!"#$%&\'()*+,-./:;<=>?@[\]^_`{|}~]',word): #wliminates like #s#3$ #3#a@
-                continue
-            elif len(word)<=2:
-                continue
-            elif (len(word)>50):
-                continue
-            elif word:
-                words.append(word) 
-        words1 = [word for word in words if not ps.stem(word) in stop_words]
-        words2 = [word for word in words1 if not word in combine]
-        id_pro_c[key] = words2
-    return id_pro_c
+            elif 3<=len(w)<45:
+                w = re.sub("[\‟\′\'�_]",'',w)
+                mat1.append(w)
+        return mat1
+
+    # @classmethod   
+    # def rem_spac(cls,text):
+    #     text = ' '.join(text)
+    #     doc = cls.nlp(text)
+    #     text1 =[token.text for token in doc if not token.pos_ == "VERB"] #in #['AFX','JJR','JJS','RBR','RBS','VBD','VBN']]
+    #     return text1
+
+
+    @classmethod
+    def rem_dic_stem(cls,text):
+        text = [ w for w in text if cls.ps.stem(w) not in cls.content]
+        text = [w for w in text if w not in cls.content1]
+        text = [w for w in text if w not in cls.combine]
+        return text
+
+
+    @classmethod
+    def __run__(cls,id_pro_c):
+        for key, value in id_pro_c.items():
+            mat = cls.pre_clean(text =value.lower())
+            mat = cls.tokenise(text=mat)
+            mat = cls.rem_stopwords(text=mat)
+            mat = cls.rem_reg(text=mat)
+            # mat = cls.rem_spac(text=mat)
+            mat = cls.rem_dic_stem(text=mat)
+            # mat = cls.join_words(text=mat)
+            id_pro_c[key] = mat
+        return id_pro_c
